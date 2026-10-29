@@ -65,16 +65,21 @@ jobs:
       - name: Install Android SDK packages
         run: |
           set -euo pipefail
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
           mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
-          if [ ! -x "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
-            cd /tmp
-            curl -sSLo cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-latest.zip
-            unzip -q cmdline-tools.zip
+          if [ ! -x "$SDKMANAGER" ]; then
+            # 复用镜像自带的 cmdline-tools，避免依赖可能失效的 -latest 下载地址
+            SRC=$(find /usr/local/lib/android/sdk/cmdline-tools -name sdkmanager -type f -print -quit 2>/dev/null || true)
+            if [ -z "$SRC" ]; then
+              echo "::error::runner image has no Android cmdline-tools"
+              exit 1
+            fi
+            SRC_DIR=$(dirname "$(dirname "$SRC")")
             rm -rf "$ANDROID_SDK_ROOT/cmdline-tools/latest"
-            mv cmdline-tools "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+            cp -a "$SRC_DIR" "$ANDROID_SDK_ROOT/cmdline-tools/latest"
           fi
-          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" \
             "platforms;android-37.0" "build-tools;37.0.0" \
             "ndk;27.3.13750724" "cmake;3.22.1"
 
