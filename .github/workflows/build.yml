@@ -19,12 +19,13 @@ jobs:
       CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
       CCACHE_HARDLINK: "true"
       CCACHE_NOHASHDIR: "true"
-      CCACHE_MAXSIZE: "2G"
+      CCACHE_MAXSIZE: "5G"
       CMAKE_BUILD_PARALLEL_LEVEL: "4"
     steps:
       - uses: actions/checkout@v7
         with:
           submodules: 'recursive'
+          fetch-depth: 1
 
       - name: Free disk space
         run: |
@@ -48,10 +49,34 @@ jobs:
         with:
           cache-read-only: false
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
+      - name: Prepare Android SDK env
+        run: |
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+
+      - name: Cache NDK and CMake
+        uses: actions/cache@v4
         with:
-          packages: "build-tools;37.0.0 ndk;27.3.13750724 platforms;android-37.0 cmake;3.22.1"
+          path: |
+            ~/android-sdk/ndk
+            ~/android-sdk/cmake
+          key: android-ndk-27.3.13750724-cmake-3.22.1
+
+      - name: Install Android SDK packages
+        run: |
+          set -euo pipefail
+          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+          if [ ! -x "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
+            cd /tmp
+            curl -sSLo cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-latest.zip
+            unzip -q cmdline-tools.zip
+            rm -rf "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+            mv cmdline-tools "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+          fi
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-37.0" "build-tools;37.0.0" \
+            "ndk;27.3.13750724" "cmake;3.22.1"
 
       - name: Configure Gradle
         run: |

@@ -139,7 +139,8 @@ android {
         externalNativeBuild {
             cmake {
                 version '3.22.1'
-                arguments '-DANDROID_STL=c++_static', '-DANDROID_PLATFORM=android-23', '-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON'
+                arguments '-DANDROID_STL=c++_static', '-DANDROID_PLATFORM=android-23', '-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON',
+                        '-DCMAKE_C_FLAGS_RELWITHDEBINFO=-O2 -DNDEBUG -g0', '-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-O2 -DNDEBUG -g0'
                 targets 'tmessages.49'
                 System.getenv("PATH").split(File.pathSeparator).any { path ->
                     var file = Paths.get("${path}${File.separator}ccache${if (OperatingSystem.current().windows) ".exe" else ""}").toFile()
