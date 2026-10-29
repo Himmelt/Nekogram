@@ -2,18 +2,12 @@ package tw.nekomimi.nekogram.helpers;
 
 import android.app.Application;
 import android.content.SharedPreferences;
-import android.os.Bundle;
 
-import com.google.firebase.analytics.FirebaseAnalytics;
-
-import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildConfig;
 import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.Utilities;
 import org.telegram.ui.ActionBar.BaseFragment;
-
-import java.util.HashMap;
 
 import io.sentry.Breadcrumb;
 import io.sentry.Sentry;
@@ -24,8 +18,6 @@ import tw.nekomimi.nekogram.Extra;
 
 public class AnalyticsHelper {
     private static SharedPreferences preferences;
-
-    private static FirebaseAnalytics firebaseAnalytics;
 
     public static boolean sendBugReport = true;
     public static boolean analyticsDisabled = false;
@@ -43,9 +35,6 @@ public class AnalyticsHelper {
         if (userId == null || userId.length() < 32) {
             preferences.edit().putString("userId", userId = generateUserID()).apply();
         }
-        firebaseAnalytics = FirebaseAnalytics.getInstance(application);
-        firebaseAnalytics.setAnalyticsCollectionEnabled(true);
-        firebaseAnalytics.setUserId(userId);
         SentryAndroid.init(application, options -> {
             options.setDsn(Extra.SENTRY_DSN);
             options.setEnvironment(BuildConfig.BUILD_TYPE);
@@ -83,23 +72,11 @@ public class AnalyticsHelper {
         breadcrumb.setData("state", lifecycle);
         breadcrumb.setData("screen", getFragmentName(fragment));
         Sentry.addBreadcrumb(breadcrumb);
-        if ("created".equals(lifecycle)) {
-            firebaseAnalytics.logEvent(FirebaseAnalytics.Event.SCREEN_VIEW, null);
-        }
     }
 
     private static String getFragmentName(BaseFragment fragment) {
         var canonicalName = fragment.getClass().getCanonicalName();
         return canonicalName != null ? canonicalName : fragment.getClass().getSimpleName();
-    }
-
-    public static void trackEvent(String event, HashMap<String, String> map) {
-        if (analyticsDisabled) return;
-        Bundle bundle = new Bundle();
-        for (String key : map.keySet()) {
-            bundle.putString(key, map.get(key));
-        }
-        firebaseAnalytics.logEvent(event, bundle);
     }
 
     public static boolean isSettingsAvailable() {
@@ -109,7 +86,6 @@ public class AnalyticsHelper {
     public static void setAnalyticsDisabled() {
         AnalyticsHelper.analyticsDisabled = true;
         if (BuildConfig.DEBUG) return;
-        FirebaseAnalytics.getInstance(ApplicationLoader.applicationContext).setAnalyticsCollectionEnabled(false);
         preferences.edit().putBoolean("analyticsDisabled", true).apply();
     }
 

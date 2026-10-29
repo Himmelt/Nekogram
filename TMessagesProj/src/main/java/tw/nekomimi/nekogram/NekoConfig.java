@@ -12,11 +12,9 @@ import org.telegram.messenger.ApplicationLoader;
 import org.telegram.ui.ActionBar.Theme;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
-import tw.nekomimi.nekogram.helpers.AnalyticsHelper;
 import tw.nekomimi.nekogram.helpers.CloudSettingsHelper;
 import tw.nekomimi.nekogram.helpers.LensHelper;
 import tw.nekomimi.nekogram.translator.Translator;
@@ -153,10 +151,6 @@ public class NekoConfig {
 
     private static final SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("nekoconfig", Activity.MODE_PRIVATE);
     private static final SharedPreferences.OnSharedPreferenceChangeListener listener = (preferences, key) -> {
-        var map = new HashMap<String, String>(1);
-        map.put("key", key);
-        AnalyticsHelper.trackEvent("neko_config_changed", map);
-
         CloudSettingsHelper.getInstance().doAutoSync();
     };
     private static boolean configLoaded;

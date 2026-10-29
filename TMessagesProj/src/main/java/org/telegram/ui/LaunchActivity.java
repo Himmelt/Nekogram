@@ -89,9 +89,6 @@ import androidx.core.view.ViewCompat;
 
 import com.google.android.gms.common.api.Status;
 import com.google.common.primitives.Longs;
-import com.google.firebase.appindexing.Action;
-import com.google.firebase.appindexing.FirebaseUserActions;
-import com.google.firebase.appindexing.builders.AssistActionBuilder;
 
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AccountInstance;
@@ -1893,12 +1890,6 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     final LinkManager linkManager = new LinkManager(this, intentAccount[0], progress, openedTelegram);
                     if (linkManager.handle(data)) {
                         if (intent.hasExtra(EXTRA_ACTION_TOKEN)) {
-                            final boolean success = true;
-                            final Action assistAction = new AssistActionBuilder()
-                                .setActionToken(intent.getStringExtra(EXTRA_ACTION_TOKEN))
-                                .setActionStatus(success ? Action.Builder.STATUS_TYPE_COMPLETED : Action.Builder.STATUS_TYPE_FAILED)
-                                .build();
-                            FirebaseUserActions.getInstance(this).end(assistAction);
                             intent.removeExtra(EXTRA_ACTION_TOKEN);
                         }
                         return true;
@@ -2804,12 +2795,6 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                             }
                         }
                         if (intent.hasExtra(EXTRA_ACTION_TOKEN)) {
-                            final boolean success = UserConfig.getInstance(currentAccount).isClientActivated() && "tg".equals(scheme) && unsupportedUrl == null;
-                            final Action assistAction = new AssistActionBuilder()
-                                    .setActionToken(intent.getStringExtra(EXTRA_ACTION_TOKEN))
-                                    .setActionStatus(success ? Action.Builder.STATUS_TYPE_COMPLETED : Action.Builder.STATUS_TYPE_FAILED)
-                                    .build();
-                            FirebaseUserActions.getInstance(this).end(assistAction);
                             intent.removeExtra(EXTRA_ACTION_TOKEN);
                         }
                         if (code != null || UserConfig.getInstance(currentAccount).isClientActivated()) {

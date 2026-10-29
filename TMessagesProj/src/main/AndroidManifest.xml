@@ -805,13 +805,6 @@
             android:foregroundServiceType="dataSync"
         />
 
-        <service
-            android:name=".GcmPushListenerService" android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
-
         <receiver android:name="tw.nekomimi.nekogram.SaveToDownloadReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="${applicationId}.CANCEL_SAVE_TO_DOWNLOAD" />
@@ -860,8 +853,6 @@
         <meta-data
             android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
             android:value="org.telegram.messenger.chromecast.ChromecastOptionsProvider" />
-
-        <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/notification" />
 
         <provider
             android:name="io.sentry.android.core.SentryInitProvider"
