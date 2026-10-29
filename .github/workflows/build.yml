@@ -64,10 +64,12 @@ jobs:
         env:
           API_ID: ${{ secrets.API_ID }}
           API_HASH: ${{ secrets.API_HASH }}
+          MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
         run: |
           echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
           if [ -n "${API_ID}" ]; then echo "apiId=${API_ID}" >> local.properties; fi
           if [ -n "${API_HASH}" ]; then echo "apiHash=${API_HASH}" >> local.properties; fi
+          echo "mapsApiKey=${MAPS_API_KEY:-}" >> local.properties
           if [ -z "${API_ID}" ] || [ -z "${API_HASH}" ]; then
             echo "::warning::未配置 API_ID / API_HASH，APK 可以构建，但无法登录 Telegram"
           fi
