@@ -4,21 +4,12 @@ plugins {
     id 'com.android.application'
     id 'androidx.baselineprofile'
     id 'org.telegram.build-app-plugin'
-    id 'io.sentry.android.gradle'
 }
 
 dependencies {
     implementation project(':TMessagesProj')
     implementation 'androidx.profileinstaller:profileinstaller:1.4.1'
     baselineProfile project(':baselineprofile')
-}
-
-sentry {
-    // 没有 Sentry 认证信息，禁用插件的全部上传/注入任务，否则 release 构建会因缺少 token 失败
-    ignoredBuildTypes = ["debug", "release"]
-    autoInstallation {
-        enabled = false
-    }
 }
 
 android {

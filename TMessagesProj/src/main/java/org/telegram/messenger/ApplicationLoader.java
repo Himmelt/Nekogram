@@ -51,7 +51,6 @@ import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 
 import tw.nekomimi.nekogram.FirebaseFix;
-import tw.nekomimi.nekogram.helpers.AnalyticsHelper;
 import tw.nekomimi.nekogram.helpers.CronetHelper;
 
 public class ApplicationLoader extends Application {
@@ -302,7 +301,6 @@ public class ApplicationLoader extends Application {
 
         // AndroidUtilities must be initialized before FileLog
         final String helloWorld = AndroidUtilities.getHelloWorld();
-        AnalyticsHelper.start(this);
         CronetHelper.init(this);
 
         if (BuildVars.LOGS_ENABLED) {
