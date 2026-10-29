@@ -90,18 +90,36 @@ jobs:
           echo 'org.gradle.parallel=true' >> ~/.gradle/gradle.properties
           echo 'org.gradle.jvmargs=-Xmx6g -Dfile.encoding=UTF-8' >> ~/.gradle/gradle.properties
 
-      - name: Configure local.properties
+      - name: Configure local.properties and signing
         env:
           API_ID: ${{ secrets.API_ID }}
           API_HASH: ${{ secrets.API_HASH }}
           MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
+          set -euo pipefail
           echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
           if [ -n "${API_ID}" ]; then echo "apiId=${API_ID}" >> local.properties; fi
           if [ -n "${API_HASH}" ]; then echo "apiHash=${API_HASH}" >> local.properties; fi
           echo "mapsApiKey=${MAPS_API_KEY:-}" >> local.properties
           if [ -z "${API_ID}" ] || [ -z "${API_HASH}" ]; then
             echo "::warning::未配置 API_ID / API_HASH，APK 可以构建，但无法登录 Telegram"
+          fi
+
+          if [ -n "${KEYSTORE_BASE64}" ] && [ -n "${KEYSTORE_PASSWORD}" ] \
+              && [ -n "${KEY_ALIAS}" ] && [ -n "${KEY_PASSWORD}" ]; then
+            KEYSTORE_PATH="${RUNNER_TEMP}/release.keystore"
+            printf '%s' "${KEYSTORE_BASE64}" | base64 --decode > "${KEYSTORE_PATH}"
+            echo "storeFile=${KEYSTORE_PATH}" >> local.properties
+            echo "storePassword=${KEYSTORE_PASSWORD}" >> local.properties
+            echo "keyAlias=${KEY_ALIAS}" >> local.properties
+            echo "keyPassword=${KEY_PASSWORD}" >> local.properties
+            echo "已注入 release 签名密钥"
+          else
+            echo "::warning::未配置 KEYSTORE_BASE64 / KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD，release 包将使用 debug 签名"
           fi
 
       - name: Build release APK (arm64-v8a)

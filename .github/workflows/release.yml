@@ -4,21 +4,26 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "要发布的 tag（如 v13.0.3）"
+        required: true
+        type: string
 
 jobs:
   build:
     uses: ./.github/workflows/build.yml
     secrets: inherit
-    permissions:
-      id-token: write
-      attestations: write
-      artifact-metadata: write
+
   release:
     needs:
       - build
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      RELEASE_BOT_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
+      RELEASE_CHANNEL_ID: ${{ secrets.RELEASE_CHANNEL_ID }}
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v8
@@ -28,14 +33,26 @@ jobs:
       - name: Display downloaded files
         run: ls -R
 
+      - name: Generate checksums
+        run: |
+          set -euo pipefail
+          cd apk/release
+          sha256sum *.apk > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
       - name: Release
         uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ inputs.tag_name || github.ref_name }}
+          name: ${{ inputs.tag_name || github.ref_name }}
           files: |
             apk/**/*.apk
-            bundle/**/*.aab
+            apk/release/SHA256SUMS.txt
+          fail_on_unmatched_files: true
+          generate_release_notes: true
 
       - name: Upload to Telegram
+        if: ${{ env.RELEASE_BOT_TOKEN != '' && env.RELEASE_CHANNEL_ID != '' }}
         uses: nekogram/upload-with-mtcute@96ee056904a52e61d73e87d8a82f800219c4fc2c
         with:
           api-id: ${{ secrets.API_ID }}
