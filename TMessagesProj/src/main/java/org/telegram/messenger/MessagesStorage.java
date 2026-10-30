@@ -11289,6 +11289,114 @@ public class MessagesStorage extends BaseController {
         });
     }
 
+    public void addMessageMediaToDownloadQueue(ArrayList<TLRPC.Message> messages) {
+        if (messages == null || messages.isEmpty()) {
+            return;
+        }
+        storageQueue.postRunnable(() -> {
+            int downloadMediaMask = 0;
+            SQLitePreparedStatement state_download = null;
+            try {
+                state_download = database.executeFast("REPLACE INTO download_queue VALUES(?, ?, ?, ?, ?)");
+                for (int a = 0, N = messages.size(); a < N; a++) {
+                    TLRPC.Message message = messages.get(a);
+                    if (message == null) {
+                        continue;
+                    }
+                    downloadMediaMask |= putMessageMediaToDownloadQueueInternal(message, state_download);
+                }
+            } catch (Exception e) {
+                checkSQLException(e);
+            } finally {
+                if (state_download != null) {
+                    state_download.dispose();
+                }
+            }
+            final int downloadMediaMaskFinal = downloadMediaMask;
+            if (downloadMediaMaskFinal != 0) {
+                AndroidUtilities.runOnUIThread(() -> getDownloadController().newDownloadObjectsAvailable(downloadMediaMaskFinal));
+            }
+        });
+    }
+
+    private int putMessageMediaToDownloadQueueInternal(TLRPC.Message message, SQLitePreparedStatement state_download) {
+        if (message == null || getDownloadController().canDownloadMedia(message) != 1) {
+            return 0;
+        }
+        final long dialogId = MessageObject.getDialogId(message);
+        if (getDialogFolderIdInternal(dialogId) == 1 || !(message.media instanceof TLRPC.TL_messageMediaPhoto || message.media instanceof TLRPC.TL_messageMediaDocument || message.media instanceof TLRPC.TL_messageMediaWebPage)) {
+            return 0;
+        }
+        int type = 0;
+        long id = 0;
+        TLRPC.MessageMedia object = null;
+        TLRPC.Document document = MessageObject.getDocument(message);
+        ArrayList<VideoPlayer.Quality> qualities = VideoPlayer.getQualities(currentAccount, message.media, true);
+        if (qualities != null) {
+            VideoPlayer.VideoUri v = VideoPlayer.getQualityForThumb(qualities);
+            if (v != null) {
+                document = v.document;
+            }
+        }
+        TLRPC.Photo photo = MessageObject.getPhoto(message);
+        if (MessageObject.isVoiceMessage(message)) {
+            id = document.id;
+            type = DownloadController.AUTODOWNLOAD_TYPE_AUDIO;
+            object = new TLRPC.TL_messageMediaDocument();
+            object.document = document;
+            object.flags |= 1;
+        } else if (MessageObject.isStickerMessage(message) || MessageObject.isAnimatedStickerMessage(message)) {
+            id = document.id;
+            type = DownloadController.AUTODOWNLOAD_TYPE_PHOTO;
+            object = new TLRPC.TL_messageMediaDocument();
+            object.document = document;
+            object.flags |= 1;
+        } else if (MessageObject.isVideoMessage(message) || MessageObject.isRoundVideoMessage(message) || MessageObject.isGifMessage(message)) {
+            id = document.id;
+            type = DownloadController.AUTODOWNLOAD_TYPE_VIDEO;
+            object = new TLRPC.TL_messageMediaDocument();
+            object.document = document;
+            object.flags |= 1;
+        } else if (document != null) {
+            id = document.id;
+            type = DownloadController.AUTODOWNLOAD_TYPE_DOCUMENT;
+            object = new TLRPC.TL_messageMediaDocument();
+            object.document = document;
+            object.flags |= 1;
+        } else if (photo != null) {
+            TLRPC.PhotoSize photoSize = FileLoader.getClosestPhotoSizeWithSize(photo.sizes, AndroidUtilities.getPhotoSize());
+            if (photoSize != null) {
+                id = photo.id;
+                type = DownloadController.AUTODOWNLOAD_TYPE_PHOTO;
+                object = new TLRPC.TL_messageMediaPhoto();
+                object.photo = photo;
+                object.flags |= 1;
+                if (message.media instanceof TLRPC.TL_messageMediaWebPage) {
+                    object.flags |= 0x80000000;
+                }
+            }
+        }
+        if (object == null) {
+            return 0;
+        }
+        if (message.media.ttl_seconds != 0) {
+            object.ttl_seconds = message.media.ttl_seconds;
+            object.flags |= 4;
+        }
+        MessageObject messageObject = new MessageObject(currentAccount, message, false, false);
+        NativeByteBuffer data = new NativeByteBuffer(object.getObjectSize());
+        object.serializeToStream(data);
+        state_download.requery();
+        state_download.bindLong(1, id);
+        state_download.bindInteger(2, type);
+        state_download.bindInteger(3, message.date);
+        state_download.bindByteBuffer(4, data);
+        state_download.bindString(5, "sent_" + (message.peer_id != null ? message.peer_id.channel_id : 0) + "_" + message.id + "_" + DialogObject.getPeerDialogId(message.peer_id) + "_" + messageObject.type + "_" + messageObject.getSize());
+        state_download.step();
+        data.reuse();
+        return type;
+    }
+
     public int getMessageMediaType(TLRPC.Message message) {
         if (message instanceof TLRPC.TL_message_secret) {
             if (message.media instanceof TLRPC.TL_messageMediaPhoto || MessageObject.isGifMessage(message) ||
@@ -12827,77 +12935,8 @@ public class MessagesStorage extends BaseController {
                     }
                     data.reuse();
 
-                    if (downloadMask != 0 && (message.peer_id.channel_id == 0 || message.post) && message.date >= getConnectionsManager().getCurrentTime() - 15 * 60 && getDownloadController().canDownloadMedia(message) == 1) {
-                        final long dialogId = MessageObject.getDialogId(message);
-                        if (getDialogFolderIdInternal(dialogId) != 1 && (message.media instanceof TLRPC.TL_messageMediaPhoto || message.media instanceof TLRPC.TL_messageMediaDocument || message.media instanceof TLRPC.TL_messageMediaWebPage)) {
-                            int type = 0;
-                            long id = 0;
-                            TLRPC.MessageMedia object = null;
-                            TLRPC.Document document = MessageObject.getDocument(message);
-                            ArrayList<VideoPlayer.Quality> qualities = VideoPlayer.getQualities(currentAccount, message.media, true);
-                            if (qualities != null) {
-                                VideoPlayer.VideoUri v = VideoPlayer.getQualityForThumb(qualities);
-                                if (v != null) {
-                                    document = v.document;
-                                }
-                            }
-                            TLRPC.Photo photo = MessageObject.getPhoto(message);
-                            if (MessageObject.isVoiceMessage(message)) {
-                                id = document.id;
-                                type = DownloadController.AUTODOWNLOAD_TYPE_AUDIO;
-                                object = new TLRPC.TL_messageMediaDocument();
-                                object.document = document;
-                                object.flags |= 1;
-                            } else if (MessageObject.isStickerMessage(message) || MessageObject.isAnimatedStickerMessage(message)) {
-                                id = document.id;
-                                type = DownloadController.AUTODOWNLOAD_TYPE_PHOTO;
-                                object = new TLRPC.TL_messageMediaDocument();
-                                object.document = document;
-                                object.flags |= 1;
-                            } else if (MessageObject.isVideoMessage(message) || MessageObject.isRoundVideoMessage(message) || MessageObject.isGifMessage(message)) {
-                                id = document.id;
-                                type = DownloadController.AUTODOWNLOAD_TYPE_VIDEO;
-                                object = new TLRPC.TL_messageMediaDocument();
-                                object.document = document;
-                                object.flags |= 1;
-                            } else if (document != null) {
-                                id = document.id;
-                                type = DownloadController.AUTODOWNLOAD_TYPE_DOCUMENT;
-                                object = new TLRPC.TL_messageMediaDocument();
-                                object.document = document;
-                                object.flags |= 1;
-                            } else if (photo != null) {
-                                TLRPC.PhotoSize photoSize = FileLoader.getClosestPhotoSizeWithSize(photo.sizes, AndroidUtilities.getPhotoSize());
-                                if (photoSize != null) {
-                                    id = photo.id;
-                                    type = DownloadController.AUTODOWNLOAD_TYPE_PHOTO;
-                                    object = new TLRPC.TL_messageMediaPhoto();
-                                    object.photo = photo;
-                                    object.flags |= 1;
-                                    if (message.media instanceof TLRPC.TL_messageMediaWebPage) {
-                                        object.flags |= 0x80000000;
-                                    }
-                                }
-                            }
-                            if (object != null) {
-                                if (message.media.ttl_seconds != 0) {
-                                    object.ttl_seconds = message.media.ttl_seconds;
-                                    object.flags |= 4;
-                                }
-                                MessageObject messageObject = new MessageObject(currentAccount, message, false, false);
-                                downloadMediaMask |= type;
-                                state_download.requery();
-                                data = new NativeByteBuffer(object.getObjectSize());
-                                object.serializeToStream(data);
-                                state_download.bindLong(1, id);
-                                state_download.bindInteger(2, type);
-                                state_download.bindInteger(3, message.date);
-                                state_download.bindByteBuffer(4, data);
-                                state_download.bindString(5, "sent_" + (message.peer_id != null ? message.peer_id.channel_id : 0) + "_" + message.id + "_" + DialogObject.getPeerDialogId(message.peer_id) + "_" + messageObject.type + "_" + messageObject.getSize());
-                                state_download.step();
-                                data.reuse();
-                            }
-                        }
+                    if (downloadMask != 0 && (message.peer_id.channel_id == 0 || message.post) && message.date >= getConnectionsManager().getCurrentTime() - 15 * 60) {
+                        downloadMediaMask |= putMessageMediaToDownloadQueueInternal(message, state_download);
                     }
                 }
                 state_messages.dispose();

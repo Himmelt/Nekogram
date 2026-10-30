@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="AutoDownloadUnread">自動下載未讀訊息</string>
     <string name="NekoSettings">喵設定</string>
     <string name="PreferIPv6">優先透過 IPv6 連線</string>
     <string name="MessageMenu">訊息選單</string>

@@ -35,6 +35,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
 
+import tw.nekomimi.nekogram.helpers.AutoDownloadUnreadHelper;
+
 public class DownloadController extends BaseController implements NotificationCenter.NotificationCenterDelegate {
 
     public interface FileDownloadProgressListener {
@@ -239,6 +241,9 @@ public class DownloadController extends BaseController implements NotificationCe
     public int currentMobilePreset;
     public int currentWifiPreset;
     public int currentRoamingPreset;
+    public boolean autoDownloadUnreadMobile;
+    public boolean autoDownloadUnreadWifi;
+    public boolean autoDownloadUnreadRoaming;
     
     private static volatile DownloadController[] Instance = new DownloadController[UserConfig.MAX_ACCOUNT_COUNT];
 
@@ -319,6 +324,10 @@ public class DownloadController extends BaseController implements NotificationCe
             editor.putInt("currentRoamingPreset", currentRoamingPreset = 3);
             editor.commit();
         }
+
+        autoDownloadUnreadMobile = preferences.getBoolean("autoDownloadUnreadMobile", false);
+        autoDownloadUnreadWifi = preferences.getBoolean("autoDownloadUnreadWifi", false);
+        autoDownloadUnreadRoaming = preferences.getBoolean("autoDownloadUnreadRoaming", false);
 
         AndroidUtilities.runOnUIThread(() -> {
             getNotificationCenter().addObserver(DownloadController.this, NotificationCenter.fileLoadFailed);
@@ -435,6 +444,41 @@ public class DownloadController extends BaseController implements NotificationCe
         }
     }
 
+    public boolean isAutoDownloadUnreadEnabled(int type) {
+        if (type == 0) {
+            return autoDownloadUnreadMobile;
+        } else if (type == 1) {
+            return autoDownloadUnreadWifi;
+        } else {
+            return autoDownloadUnreadRoaming;
+        }
+    }
+
+    public boolean isPresetEnabled(int type) {
+        if (type == 0) {
+            return mobilePreset.enabled;
+        } else if (type == 1) {
+            return wifiPreset.enabled;
+        } else {
+            return roamingPreset.enabled;
+        }
+    }
+
+    public void setAutoDownloadUnreadEnabled(int type, boolean enabled) {
+        String key;
+        if (type == 0) {
+            autoDownloadUnreadMobile = enabled;
+            key = "autoDownloadUnreadMobile";
+        } else if (type == 1) {
+            autoDownloadUnreadWifi = enabled;
+            key = "autoDownloadUnreadWifi";
+        } else {
+            autoDownloadUnreadRoaming = enabled;
+            key = "autoDownloadUnreadRoaming";
+        }
+        MessagesController.getMainSettings(currentAccount).edit().putBoolean(key, enabled).apply();
+    }
+
     public static int typeToIndex(int type) {
         if (type == AUTODOWNLOAD_TYPE_PHOTO) {
             return PRESET_SIZE_NUM_PHOTO;
@@ -531,6 +575,7 @@ public class DownloadController extends BaseController implements NotificationCe
     }
 
     public void checkAutodownloadSettings() {
+        AutoDownloadUnreadHelper.getInstance(currentAccount).onSettingsChanged();
         int currentMask = getCurrentDownloadMask();
         if (currentMask == lastCheckMask) {
             return;

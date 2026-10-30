@@ -70,6 +70,8 @@ public class DataAutoDownloadActivity extends BaseFragment {
 
     @Keep
     private int autoDownloadRow;
+    @Keep
+    private int autoDownloadUnreadRow;
     private int autoDownloadSectionRow;
     private int usageHeaderRow;
     @Keep
@@ -202,6 +204,7 @@ public class DataAutoDownloadActivity extends BaseFragment {
                     listAdapter.notifyItemRangeRemoved(autoDownloadSectionRow + 1, 9);
                 }
                 listAdapter.notifyItemChanged(autoDownloadSectionRow);
+                listAdapter.notifyItemChanged(autoDownloadUnreadRow);
                 SharedPreferences.Editor editor = MessagesController.getMainSettings(currentAccount).edit();
                 editor.putString(key, typePreset.toString());
                 editor.putInt(key2, currentPresetNum = 3);
@@ -217,6 +220,15 @@ public class DataAutoDownloadActivity extends BaseFragment {
                 cell.setChecked(!checked);
                 DownloadController.getInstance(currentAccount).checkAutodownloadSettings();
                 wereAnyChanges = true;
+            } else if (position == autoDownloadUnreadRow) {
+                if (!view.isEnabled() || !typePreset.enabled) {
+                    return;
+                }
+                TextCheckCell cell = (TextCheckCell) view;
+                boolean checked = cell.isChecked();
+                DownloadController.getInstance(currentAccount).setAutoDownloadUnreadEnabled(currentType, !checked);
+                cell.setChecked(!checked);
+                DownloadController.getInstance(currentAccount).checkAutodownloadSettings();
             } else if (position == photosRow || position == videosRow || position == filesRow || position == storiesRow) {
                 if (!view.isEnabled()) {
                     return;
@@ -625,6 +637,7 @@ public class DataAutoDownloadActivity extends BaseFragment {
     private void updateRows() {
         rowCount = 0;
         autoDownloadRow = rowCount++;
+        autoDownloadUnreadRow = rowCount++;
         autoDownloadSectionRow = rowCount++;
         if (typePreset.enabled) {
             usageHeaderRow = rowCount++;
@@ -672,6 +685,12 @@ public class DataAutoDownloadActivity extends BaseFragment {
                         view.setTextAndCheck(LocaleController.getString(R.string.AutoDownloadMedia), typePreset.enabled, false);
                         view.setTag(typePreset.enabled ? Theme.key_windowBackgroundChecked : Theme.key_windowBackgroundUnchecked);
                         view.setBackgroundColor(Theme.getColor(typePreset.enabled ? Theme.key_windowBackgroundChecked : Theme.key_windowBackgroundUnchecked));
+                    } else if (position == autoDownloadUnreadRow) {
+                        view.setDrawCheckRipple(true);
+                        view.setTextAndCheck(LocaleController.getString(R.string.AutoDownloadUnread), DownloadController.getInstance(currentAccount).isAutoDownloadUnreadEnabled(currentType), true);
+                        view.setTag(Theme.key_windowBackgroundWhite);
+                        view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                        view.setEnabled(typePreset.enabled, null);
                     }
                     break;
                 }
@@ -808,6 +827,9 @@ public class DataAutoDownloadActivity extends BaseFragment {
         @Override
         public boolean isEnabled(RecyclerView.ViewHolder holder) {
             int position = holder.getAdapterPosition();
+            if (position == autoDownloadUnreadRow) {
+                return typePreset.enabled;
+            }
             return position == photosRow || position == videosRow || position == filesRow || position == storiesRow;
         }
 
@@ -881,7 +903,7 @@ public class DataAutoDownloadActivity extends BaseFragment {
 
         @Override
         public int getItemViewType(int position) {
-            if (position == autoDownloadRow) {
+            if (position == autoDownloadRow || position == autoDownloadUnreadRow) {
                 return 0;
             } else if (position == usageSectionRow) {
                 return 1;
@@ -935,6 +957,7 @@ public class DataAutoDownloadActivity extends BaseFragment {
 
         themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR | ThemeDescription.FLAG_CHECKTAG, new Class[]{TextCheckCell.class}, null, null, null, Theme.key_windowBackgroundChecked));
         themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR | ThemeDescription.FLAG_CHECKTAG, new Class[]{TextCheckCell.class}, null, null, null, Theme.key_windowBackgroundUnchecked));
+        themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR | ThemeDescription.FLAG_CHECKTAG, new Class[]{TextCheckCell.class}, null, null, null, Theme.key_windowBackgroundWhite));
         themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{TextCheckCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundCheckText));
         themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{TextCheckCell.class}, new String[]{"checkBox"}, null, null, null, Theme.key_switchTrackBlue));
         themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{TextCheckCell.class}, new String[]{"checkBox"}, null, null, null, Theme.key_switchTrackBlueChecked));
