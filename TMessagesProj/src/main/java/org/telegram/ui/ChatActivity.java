@@ -343,6 +343,7 @@ import tw.nekomimi.nekogram.forward.ForwardItem;
 import tw.nekomimi.nekogram.forward.ForwardPopupWrapper;
 import tw.nekomimi.nekogram.MessageDetailsActivity;
 import tw.nekomimi.nekogram.NekoConfig;
+import tw.nekomimi.nekogram.helpers.MessageFavoritesHelper;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
 import tw.nekomimi.nekogram.helpers.QrHelper;
 import tw.nekomimi.nekogram.helpers.EmojiHelper;
@@ -39951,6 +39952,31 @@ public class ChatActivity extends BaseFragment implements
         @Override
         public boolean openArticlePhoto(ChatMessageCell cell, TL_iv.PageBlock block) {
             return ChatActivity.this.openArticlePhoto(cell, block);
+        }
+
+        @Override
+        public void didPressFavoriteButton(ChatMessageCell cell) {
+            if (cell == null) {
+                return;
+            }
+            final MessageObject messageObject = cell.getMessageObject();
+            if (messageObject == null || messageObject.messageOwner == null) {
+                return;
+            }
+            if (MessageFavoritesHelper.isFavorite(currentAccount, messageObject)) {
+                MessageFavoritesHelper.setFavorite(currentAccount, messageObject, false);
+            } else {
+                final ArrayList<MessageObject> messages = new ArrayList<>();
+                final MessageObject.GroupedMessages group = cell.getCurrentMessagesGroup();
+                if (group != null && !group.messages.isEmpty()) {
+                    messages.addAll(group.messages);
+                } else {
+                    messages.add(messageObject);
+                }
+                forwardMessages(messages, false, false, true, 0, 0, getUserConfig().getClientUserId());
+                MessageFavoritesHelper.setFavorite(currentAccount, messageObject, true);
+            }
+            cell.updateFavoriteState();
         }
 
         @Override

@@ -247,6 +247,7 @@ import org.telegram.ui.Stories.recorder.DominantColors;
 
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.accessibility.AccConfig;
+import tw.nekomimi.nekogram.helpers.MessageFavoritesHelper;
 import tw.nekomimi.nekogram.helpers.MessageFilterHelper;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
 import tw.nekomimi.nekogram.helpers.WebpageHelper;
@@ -666,6 +667,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         }
 
         default void didPressSideButton(ChatMessageCell cell) {
+        }
+
+        default void didPressFavoriteButton(ChatMessageCell cell) {
         }
 
         default void didQuickShareStart(ChatMessageCell cell, float x, float y) {
@@ -1683,6 +1687,10 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
     private boolean sideButtonVisible;
     private int drawSideButton2;
     private boolean sideButtonPressed;
+    private boolean favoriteButtonVisible;
+    private boolean favoriteButtonPressed;
+    private boolean messageFavorite;
+    private static final int FAVORITE_COLOR = 0xFFFFC107;
     private boolean drawSummarizeButton;
     private boolean summarizeButtonPressed;
     private int pressedSideButton;
@@ -5098,6 +5106,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             linkPreviewPressed = false;
             otherPressed = false;
             sideButtonPressed = false;
+            favoriteButtonPressed = false;
             summarizeButtonPressed = false;
             pressedSideButton = 0;
             imagePressed = false;
@@ -5182,10 +5191,18 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                         forwardBotPressed = true;
                         result = true;
                     } else if (
+                        favoriteButtonVisible &&
+                        x >= sideStartX - dp(24) && x <= sideStartX + dp(40) &&
+                        y >= sideStartY - dp(44) && y <= sideStartY - dp(4)
+                    ) {
+                        favoriteButtonPressed = true;
+                        result = true;
+                        invalidate();
+                    } else if (
                         sideButtonVisible &&
                         drawSideButton != 0 &&
                         x >= sideStartX - dp(24) && x <= sideStartX + dp(40) &&
-                        y >= sideStartY - dp(drawSummarizeButton ? 6 : 24) && y <= sideStartY + dp(38 + (drawSideButton == 3 && commentLayout != null ? 18 : 0) + (drawSideButton2 == SIDE_BUTTON_SPONSORED_MORE ? 38 : 0))
+                        y >= sideStartY - dp(favoriteButtonVisible || drawSummarizeButton ? 6 : 24) && y <= sideStartY + dp(38 + (drawSideButton == 3 && commentLayout != null ? 18 : 0) + (drawSideButton2 == SIDE_BUTTON_SPONSORED_MORE ? 38 : 0))
                     ) {
                         if (currentMessageObject.isSent()) {
                             if (currentMessageObject.isSponsored()) {
@@ -5324,6 +5341,24 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                             }
                         }
                     }
+                } else if (favoriteButtonPressed) {
+                    if (event.getAction() == MotionEvent.ACTION_UP) {
+                        playSoundEffect(SoundEffectConstants.CLICK);
+                        favoriteButtonPressed = false;
+                        if (delegate != null) {
+                            delegate.didPressFavoriteButton(this);
+                        }
+                    } else if (event.getAction() == MotionEvent.ACTION_CANCEL) {
+                        favoriteButtonPressed = false;
+                    } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
+                        if (!(
+                            x >= sideStartX - dp(24) && x <= sideStartX + dp(40) &&
+                            y >= sideStartY - dp(44) && y <= sideStartY - dp(4)
+                        )) {
+                            favoriteButtonPressed = false;
+                        }
+                    }
+                    invalidate();
                 } else if (sideButtonPressed) {
                     if (event.getAction() == MotionEvent.ACTION_UP) {
                         playSoundEffect(SoundEffectConstants.CLICK);
@@ -13712,6 +13747,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        updateFavoriteState();
         if (currentMessageObject != null && (currentMessageObject.checkLayout() || lastHeight != AndroidUtilities.displaySize.y)) {
             inLayout = true;
             MessageObject messageObject = currentMessageObject;
@@ -21660,6 +21696,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
     }
 
     public void drawSideButton(Canvas canvas, boolean fromQuickShare) {
+        favoriteButtonVisible = false;
         if (hideSideButtonByQuickShare && !fromQuickShare || drawSideButton == 0) {
             return;
         }
@@ -21814,11 +21851,41 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 drawable.setBounds(scx - shw, scy - shh, scx + shw, scy + shh);
                 setDrawableBounds(drawable, sideStartX + dp(4), sideStartY + dp(4));
                 drawable.draw(canvas);
+
+                if (drawSideButton == 1 && !drawSummarizeButton) {
+                    favoriteButtonVisible = true;
+                    drawFavoriteButton(canvas);
+                }
             }
 
             if (restoreToSponosoredAlpha != -1) {
                 canvas.restoreToCount(restoreToSponosoredAlpha);
             }
+        }
+    }
+
+    private void drawFavoriteButton(Canvas canvas) {
+        final float top = sideStartY - dp(40);
+        rect.set(sideStartX, top, sideStartX + dp(32), top + dp(32));
+        canvas.drawRoundRect(rect, dp(16), dp(16), getThemedPaint(favoriteButtonPressed ? Theme.key_paint_chatActionBackgroundSelected : Theme.key_paint_chatActionBackground));
+        if (hasGradientService()) {
+            canvas.drawRoundRect(rect, dp(16), dp(16), Theme.chat_actionBackgroundGradientDarkenPaint);
+        }
+        Drawable star = getResources().getDrawable(R.drawable.msg_fave).mutate();
+        star.setColorFilter(new PorterDuffColorFilter(messageFavorite ? FAVORITE_COLOR : getThemedColor(Theme.key_chat_serviceIcon), PorterDuff.Mode.MULTIPLY));
+        setDrawableBounds(star, sideStartX + dp(4), top + dp(4));
+        star.draw(canvas);
+    }
+
+    public void updateFavoriteState() {
+        if (currentMessageObject == null || currentMessageObject.messageOwner == null) {
+            messageFavorite = false;
+            return;
+        }
+        final boolean favorite = MessageFavoritesHelper.isFavorite(currentAccount, currentMessageObject);
+        if (messageFavorite != favorite) {
+            messageFavorite = favorite;
+            invalidate();
         }
     }
 
