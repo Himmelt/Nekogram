@@ -266,9 +266,16 @@ public class AutoDownloadUnreadHelper implements NotificationCenter.Notification
     /**
      * 预取视频类消息的封面（document.thumbs），避免自动下载了视频后聊天界面
      * 仍需要单独向服务器请求封面。
+     * <p>
+     * 封面按"图片"处理：只要当前网络下开启了图片自动下载，就会下载封面，
+     * 与是否开启视频自动下载无关。
      */
     private void prefetchMediaCovers(ArrayList<MessageObject> messages) {
         if (messages == null || messages.isEmpty()) {
+            return;
+        }
+        DownloadController downloadController = DownloadController.getInstance(currentAccount);
+        if ((downloadController.getCurrentDownloadMask() & DownloadController.AUTODOWNLOAD_TYPE_PHOTO) == 0) {
             return;
         }
         int side = AndroidUtilities.getPhotoSize();
