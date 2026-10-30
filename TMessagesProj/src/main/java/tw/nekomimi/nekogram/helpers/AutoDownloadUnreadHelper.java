@@ -37,6 +37,8 @@ public class AutoDownloadUnreadHelper implements NotificationCenter.Notification
 
     private boolean started;
     private boolean scheduled;
+    private boolean retryPending;
+    private boolean forceCheck;
     private long lastCheckTime;
 
     private AutoDownloadUnreadHelper(int account) {
@@ -66,6 +68,9 @@ public class AutoDownloadUnreadHelper implements NotificationCenter.Notification
         AndroidUtilities.runOnUIThread(() -> {
             NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.dialogsNeedReload);
             NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.messagesDidLoad);
+            NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.fileLoadFailed);
+            NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.didUpdateConnectionState);
+            NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.screenStateChanged);
             requestCheck();
         });
     }
@@ -74,6 +79,7 @@ public class AutoDownloadUnreadHelper implements NotificationCenter.Notification
         AndroidUtilities.runOnUIThread(() -> {
             checkedDialogs.clear();
             expectedUnread.clear();
+            forceCheck = true;
             requestCheck();
         });
     }
@@ -99,9 +105,10 @@ public class AutoDownloadUnreadHelper implements NotificationCenter.Notification
             return;
         }
         long now = System.currentTimeMillis();
-        if (now - lastCheckTime < MIN_CHECK_INTERVAL) {
+        if (!forceCheck && now - lastCheckTime < MIN_CHECK_INTERVAL) {
             return;
         }
+        forceCheck = false;
         lastCheckTime = now;
 
         LongSparseArray<TLRPC.Dialog> dialogs = messagesController.dialogs_dict;
@@ -157,6 +164,19 @@ public class AutoDownloadUnreadHelper implements NotificationCenter.Notification
     public void didReceivedNotification(int id, int account, Object... args) {
         if (id == NotificationCenter.dialogsNeedReload) {
             requestCheck();
+        } else if (id == NotificationCenter.fileLoadFailed) {
+            // 息屏或后台时 MTProto 网络会被挂起，导致自动下载的媒体失败并从队列中移除，这里标记待重试
+            if ((Integer) args[1] == 0 && isEnabled()) {
+                retryPending = true;
+            }
+        } else if (id == NotificationCenter.didUpdateConnectionState) {
+            if (retryPending && isEnabled() && isNetworkConnected()) {
+                retryFailedMedia();
+            }
+        } else if (id == NotificationCenter.screenStateChanged) {
+            if (retryPending && ApplicationLoader.isScreenOn && isEnabled() && isNetworkConnected()) {
+                retryFailedMedia();
+            }
         } else if (id == NotificationCenter.messagesDidLoad) {
             if ((Integer) args[10] != classGuid) {
                 return;
@@ -167,6 +187,19 @@ public class AutoDownloadUnreadHelper implements NotificationCenter.Notification
             ArrayList<MessageObject> messages = (ArrayList<MessageObject>) args[2];
             processMessages(dialogId, isCache, messages);
         }
+    }
+
+    private void retryFailedMedia() {
+        retryPending = false;
+        checkedDialogs.clear();
+        expectedUnread.clear();
+        forceCheck = true;
+        requestCheck();
+    }
+
+    private boolean isNetworkConnected() {
+        int state = ConnectionsManager.getInstance(currentAccount).getConnectionState();
+        return state == ConnectionsManager.ConnectionStateConnected || state == ConnectionsManager.ConnectionStateUpdating;
     }
 
     private void processMessages(long dialogId, boolean isCache, ArrayList<MessageObject> messages) {
