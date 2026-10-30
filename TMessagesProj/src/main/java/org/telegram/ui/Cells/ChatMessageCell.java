@@ -21871,7 +21871,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         if (hasGradientService()) {
             canvas.drawRoundRect(rect, dp(16), dp(16), Theme.chat_actionBackgroundGradientDarkenPaint);
         }
-        Drawable star = getResources().getDrawable(R.drawable.msg_fave).mutate();
+        Drawable star = getResources().getDrawable(messageFavorite ? R.drawable.photo_star_fill : R.drawable.photo_star).mutate();
         star.setColorFilter(new PorterDuffColorFilter(messageFavorite ? FAVORITE_COLOR : getThemedColor(Theme.key_chat_serviceIcon), PorterDuff.Mode.MULTIPLY));
         setDrawableBounds(star, sideStartX + dp(4), top + dp(4));
         star.draw(canvas);

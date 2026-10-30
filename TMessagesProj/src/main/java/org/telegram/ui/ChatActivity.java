@@ -39964,18 +39964,18 @@ public class ChatActivity extends BaseFragment implements
                 return;
             }
             if (MessageFavoritesHelper.isFavorite(currentAccount, messageObject)) {
-                MessageFavoritesHelper.setFavorite(currentAccount, messageObject, false);
-            } else {
-                final ArrayList<MessageObject> messages = new ArrayList<>();
-                final MessageObject.GroupedMessages group = cell.getCurrentMessagesGroup();
-                if (group != null && !group.messages.isEmpty()) {
-                    messages.addAll(group.messages);
-                } else {
-                    messages.add(messageObject);
-                }
-                forwardMessages(messages, false, false, true, 0, 0, getUserConfig().getClientUserId());
-                MessageFavoritesHelper.setFavorite(currentAccount, messageObject, true);
+                // 已收藏：与"转发到我的收藏"一致，取消只能去收藏夹里删除消息
+                return;
             }
+            final ArrayList<MessageObject> messages = new ArrayList<>();
+            final MessageObject.GroupedMessages group = cell.getCurrentMessagesGroup();
+            if (group != null && !group.messages.isEmpty()) {
+                messages.addAll(group.messages);
+            } else {
+                messages.add(messageObject);
+            }
+            forwardMessages(messages, false, false, true, 0, 0, getUserConfig().getClientUserId());
+            MessageFavoritesHelper.setFavorite(currentAccount, messageObject, true);
             cell.updateFavoriteState();
         }
 
