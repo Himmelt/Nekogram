@@ -22552,6 +22552,16 @@ public class ChatActivity extends BaseFragment implements
                 checkAndUpdateAvatar();
                 updateVisibleRows();
             }
+            if ((updateMask & MessagesController.UPDATE_MASK_FAVORITES) != 0 && chatListView != null) {
+                int count = chatListView.getChildCount();
+                for (int a = 0; a < count; a++) {
+                    View child = chatListView.getChildAt(a);
+                    if (child instanceof ChatMessageCell) {
+                        ((ChatMessageCell) child).updateFavoriteState();
+                    }
+                }
+                chatListView.invalidate();
+            }
             if ((updateMask & MessagesController.UPDATE_MASK_USER_PRINT) != 0) {
                 updateSubtitle = true;
             }
