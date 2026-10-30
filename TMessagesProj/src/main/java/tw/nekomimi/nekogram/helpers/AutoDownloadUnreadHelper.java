@@ -6,6 +6,8 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.DownloadController;
+import org.telegram.messenger.FileLoader;
+import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
@@ -231,6 +233,7 @@ public class AutoDownloadUnreadHelper implements NotificationCenter.Notification
             return 0;
         }
         ArrayList<TLRPC.Message> toDownload = new ArrayList<>();
+        ArrayList<MessageObject> toDownloadCovers = new ArrayList<>();
         int found = 0;
         for (int a = 0, N = messages.size(); a < N; a++) {
             MessageObject messageObject = messages.get(a);
@@ -249,10 +252,41 @@ public class AutoDownloadUnreadHelper implements NotificationCenter.Notification
                 continue;
             }
             toDownload.add(message);
+            if (messageObject.isVideo() || messageObject.isGif() || messageObject.isRoundVideo()) {
+                toDownloadCovers.add(messageObject);
+            }
         }
         if (!toDownload.isEmpty()) {
             MessagesStorage.getInstance(currentAccount).addMessageMediaToDownloadQueue(toDownload);
         }
+        prefetchMediaCovers(toDownloadCovers);
         return found;
+    }
+
+    /**
+     * 预取视频类消息的封面（document.thumbs），避免自动下载了视频后聊天界面
+     * 仍需要单独向服务器请求封面。
+     */
+    private void prefetchMediaCovers(ArrayList<MessageObject> messages) {
+        if (messages == null || messages.isEmpty()) {
+            return;
+        }
+        int side = AndroidUtilities.getPhotoSize();
+        FileLoader fileLoader = FileLoader.getInstance(currentAccount);
+        for (int a = 0, N = messages.size(); a < N; a++) {
+            MessageObject messageObject = messages.get(a);
+            if (messageObject.photoThumbs == null || messageObject.photoThumbs.isEmpty() || messageObject.photoThumbsObject == null) {
+                continue;
+            }
+            TLRPC.PhotoSize thumb = FileLoader.getClosestPhotoSizeWithSize(messageObject.photoThumbs, side);
+            if (thumb == null) {
+                continue;
+            }
+            ImageLocation location = ImageLocation.getForObject(thumb, messageObject.photoThumbsObject);
+            if (location == null) {
+                continue;
+            }
+            fileLoader.loadFile(location, null, null, FileLoader.PRIORITY_LOW, 1);
+        }
     }
 }
