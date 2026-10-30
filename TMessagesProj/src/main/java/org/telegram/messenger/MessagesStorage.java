@@ -11319,7 +11319,7 @@ public class MessagesStorage extends BaseController {
         });
     }
 
-    private int putMessageMediaToDownloadQueueInternal(TLRPC.Message message, SQLitePreparedStatement state_download) {
+    private int putMessageMediaToDownloadQueueInternal(TLRPC.Message message, SQLitePreparedStatement state_download) throws Exception {
         if (message == null || getDownloadController().canDownloadMedia(message) != 1) {
             return 0;
         }
