@@ -344,6 +344,7 @@ import tw.nekomimi.nekogram.forward.ForwardPopupWrapper;
 import tw.nekomimi.nekogram.MessageDetailsActivity;
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.helpers.MessageFavoritesHelper;
+import tw.nekomimi.nekogram.helpers.MessageFilterHelper;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
 import tw.nekomimi.nekogram.helpers.QrHelper;
 import tw.nekomimi.nekogram.helpers.EmojiHelper;
@@ -21709,6 +21710,9 @@ public class ChatActivity extends BaseFragment implements
             if (obj.messageOwner.action instanceof TLRPC.TL_messageActionChannelMigrateFrom) {
                 continue;
             }
+            if (MessageFilterHelper.isKeywordBlocked(obj)) {
+                continue;
+            }
 
             final boolean canAnimateMessage = needAnimateToMessage != null && needAnimateToMessage.getId() == messageId && messageId < 0 && chatMode != MODE_SCHEDULED
                 && (chatMode != MODE_QUICK_REPLIES || messages.size() + 1 < getMessagesController().config.quickReplyMessagesLimit.get())
@@ -22102,10 +22106,13 @@ public class ChatActivity extends BaseFragment implements
                         if (!postponedScroll) {
                             if (!messages.isEmpty()) {
                                 chatAdapter.updateRowsSafe();
-                                if (chatAdapter.loadingUpRow >= 0 && !messages.isEmpty() && (messages.get(messages.size() - 1) == scrollToMessage || messages.get(messages.size() - 2) == scrollToMessage)) {
+                                if (chatAdapter.loadingUpRow >= 0 && messages.size() >= 2 && (messages.get(messages.size() - 1) == scrollToMessage || messages.get(messages.size() - 2) == scrollToMessage)) {
                                     chatLayoutManager.scrollToPositionWithOffset(chatAdapter.loadingUpRow, yOffset, bottom);
                                 } else {
-                                    chatLayoutManager.scrollToPositionWithOffset(chatAdapter.messagesStartRow + messages.indexOf(scrollToMessage), yOffset, bottom);
+                                    final int scrollToIndex = scrollToMessage == null ? -1 : messages.indexOf(scrollToMessage);
+                                    if (scrollToIndex >= 0) {
+                                        chatLayoutManager.scrollToPositionWithOffset(chatAdapter.messagesStartRow + scrollToIndex, yOffset, bottom);
+                                    }
                                 }
                             }
                         }
@@ -26246,6 +26253,9 @@ public class ChatActivity extends BaseFragment implements
                 if (obj.messageOwner instanceof TLRPC.TL_messageEmpty) {
                     continue;
                 }
+                if (MessageFilterHelper.isKeywordBlocked(obj)) {
+                    continue;
+                }
                 if (!isTopic && threadMessageObject != null && obj.isReply() && !(obj.messageOwner.action instanceof TLRPC.TL_messageActionPinMessage)) {
                     int mid = obj.getReplyAnyMsgId();
                     if (threadMessageObject.getId() == mid) {
@@ -26380,6 +26390,9 @@ public class ChatActivity extends BaseFragment implements
                     continue;
                 }
                 if (obj.messageOwner instanceof TLRPC.TL_messageEmpty) {
+                    continue;
+                }
+                if (MessageFilterHelper.isKeywordBlocked(obj)) {
                     continue;
                 }
                 if (threadMessageObject != null && threadMessageObject.messageOwner.replies != null && obj.isReply() && !(obj.messageOwner.action instanceof TLRPC.TL_messageActionPinMessage)) {

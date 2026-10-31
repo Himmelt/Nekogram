@@ -12,6 +12,10 @@
     <string name="DeleteAllFromSelfAlertBefore">Warning! This will **delete all messages from you before %s** in this chat for **all** participants.</string>
     <string name="DeleteAllFromSelfBefore">Before...</string>
     <string name="IgnoreBlocked">Hide messages from blocked user</string>
+    <string name="KeywordFilter">Keyword filter</string>
+    <string name="KeywordFilterAbout">Messages containing any of these keywords will be completely hidden (case-insensitive). One keyword per line. Reopen the chat for changes to take effect.</string>
+    <string name="KeywordFilterCount">%1$d keywords</string>
+    <string name="KeywordFilterHint">One keyword per line</string>
     <string name="Connection">Connection</string>
     <string name="Chat">Chat</string>
     <string name="NameOrder">Name order</string>

@@ -5,6 +5,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
+import android.text.InputType;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -27,6 +28,7 @@ import org.telegram.ui.Cells.TextCheckbox2Cell;
 import org.telegram.ui.Cells.ThemePreviewMessagesCell;
 import org.telegram.ui.Components.AnimatedTextView;
 import org.telegram.ui.Components.CubicBezierInterpolator;
+import org.telegram.ui.Components.EditTextBoldCursor;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.ScaleStateListAnimator;
@@ -51,6 +53,7 @@ public class NekoChatSettingsActivity extends BaseNekoSettingsActivity {
     private final int reducedColorsRow = rowId++;
 
     private final int ignoreBlockedRow = rowId++;
+    private final int keywordFilterRow = rowId++;
     private final int quickForwardRow = rowId++;
     private final int hideKeyboardOnChatScrollRow = rowId++;
     private final int tryToOpenAllLinksInIVRow = rowId++;
@@ -108,6 +111,7 @@ public class NekoChatSettingsActivity extends BaseNekoSettingsActivity {
 
         items.add(UItem.asHeader(LocaleController.getString(R.string.Chat)));
         items.add(UItem.asCheck(ignoreBlockedRow, LocaleController.getString(R.string.IgnoreBlocked), LocaleController.getString(R.string.IgnoreBlockedAbout)).slug("ignoreBlocked").setChecked(NekoConfig.ignoreBlocked));
+        items.add(TextSettingsCellFactory.of(keywordFilterRow, LocaleController.getString(R.string.KeywordFilter), getKeywordFilterSummary()).slug("keywordFilter"));
         items.add(UItem.asCheck(quickForwardRow, LocaleController.getString(R.string.QuickForward)).slug("quickForward").setChecked(NekoConfig.quickForward));
         items.add(UItem.asCheck(hideKeyboardOnChatScrollRow, LocaleController.getString(R.string.HideKeyboardOnChatScroll)).slug("hideKeyboardOnChatScroll").setChecked(NekoConfig.hideKeyboardOnChatScroll));
         items.add(UItem.asCheck(tryToOpenAllLinksInIVRow, LocaleController.getString(R.string.OpenAllLinksInInstantView)).slug("tryToOpenAllLinksInIV").setChecked(NekoConfig.tryToOpenAllLinksInIV));
@@ -180,6 +184,8 @@ public class NekoChatSettingsActivity extends BaseNekoSettingsActivity {
             if (view instanceof TextCheckCell) {
                 ((TextCheckCell) view).setChecked(NekoConfig.ignoreBlocked);
             }
+        } else if (id == keywordFilterRow) {
+            showKeywordFilterDialog();
         } else if (id == hideKeyboardOnChatScrollRow) {
             NekoConfig.toggleHideKeyboardOnChatScroll();
             if (view instanceof TextCheckCell) {
@@ -457,6 +463,59 @@ public class NekoChatSettingsActivity extends BaseNekoSettingsActivity {
     @Override
     protected String getKey() {
         return "c";
+    }
+
+    private String getKeywordFilterSummary() {
+        int count = 0;
+        for (var line : NekoConfig.keywordFilters.split("\n")) {
+            if (!line.trim().isEmpty()) {
+                count++;
+            }
+        }
+        if (count == 0) {
+            return LocaleController.getString(R.string.Disable);
+        }
+        return LocaleController.formatString(R.string.KeywordFilterCount, count);
+    }
+
+    private void showKeywordFilterDialog() {
+        var context = getParentActivity();
+        var builder = new AlertDialog.Builder(context, resourcesProvider);
+        builder.setTitle(LocaleController.getString(R.string.KeywordFilter));
+        builder.setMessage(LocaleController.getString(R.string.KeywordFilterAbout));
+        builder.setCustomViewOffset(0);
+
+        var editText = new EditTextBoldCursor(context);
+        editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+        editText.setTextColor(Theme.getColor(Theme.key_dialogTextBlack, resourcesProvider));
+        editText.setHintText(LocaleController.getString(R.string.KeywordFilterHint));
+        editText.setHintColor(Theme.getColor(Theme.key_windowBackgroundWhiteHintText));
+        editText.setHeaderHintColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueHeader, resourcesProvider));
+        editText.setTransformHintToHeader(true);
+        editText.setLineColors(Theme.getColor(Theme.key_windowBackgroundWhiteInputField, resourcesProvider), Theme.getColor(Theme.key_windowBackgroundWhiteInputFieldActivated, resourcesProvider), Theme.getColor(Theme.key_text_RedRegular, resourcesProvider));
+        editText.setBackground(null);
+        editText.setPadding(AndroidUtilities.dp(24), AndroidUtilities.dp(8), AndroidUtilities.dp(24), AndroidUtilities.dp(8));
+        editText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        editText.setSingleLine(false);
+        editText.setMinLines(3);
+        editText.setMaxLines(8);
+        editText.setGravity(Gravity.TOP | (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT));
+        editText.setText(NekoConfig.keywordFilters);
+        editText.setSelection(editText.length());
+
+        builder.setView(editText);
+        builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
+        builder.setPositiveButton(LocaleController.getString(R.string.OK), null);
+        var dialog = builder.create();
+        showDialog(dialog);
+        var button = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        if (button != null) {
+            button.setOnClickListener(v -> {
+                NekoConfig.setKeywordFilters(editText.getText().toString());
+                dialog.dismiss();
+                updateRows();
+            });
+        }
     }
 
     private void updateStickerCell() {

@@ -48,6 +48,55 @@ public class MessageFilterHelper {
         return isUserBlocked(message.currentAccount, MessageObject.getPeerId(message.messageOwner.fwd_from.from_id));
     }
 
+    private static String cachedFiltersSource;
+    private static String[] cachedFilters;
+
+    private static String[] getKeywordFilters() {
+        var source = NekoConfig.keywordFilters;
+        if (source == null) {
+            source = "";
+        }
+        if (source.equals(cachedFiltersSource)) {
+            return cachedFilters;
+        }
+        cachedFiltersSource = source;
+        var list = new ArrayList<String>();
+        for (var keyword : source.split("\n")) {
+            keyword = keyword.trim();
+            if (!keyword.isEmpty()) {
+                list.add(keyword.toLowerCase());
+            }
+        }
+        cachedFilters = list.toArray(new String[0]);
+        return cachedFilters;
+    }
+
+    public static boolean isKeywordBlocked(MessageObject message) {
+        if (message == null || message.messageOwner == null || message.storyItem != null) {
+            return false;
+        }
+        var filters = getKeywordFilters();
+        if (filters.length == 0) {
+            return false;
+        }
+        var text = message.messageOwner.message;
+        var caption = message.caption == null ? null : message.caption.toString();
+        return containsKeyword(text, filters) || containsKeyword(caption, filters);
+    }
+
+    private static boolean containsKeyword(String text, String[] filters) {
+        if (text == null || text.isEmpty()) {
+            return false;
+        }
+        var lowerText = text.toLowerCase();
+        for (var filter : filters) {
+            if (lowerText.contains(filter)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static boolean isUserBlocked(int currentAccount, long id) {
         var messagesController = MessagesController.getInstance(currentAccount);
         var userFull = messagesController.getUserFull(id);

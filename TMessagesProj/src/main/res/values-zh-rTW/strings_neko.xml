@@ -10,6 +10,10 @@
     <string name="DeleteAllFromSelfAlertBefore">警告！ 這將為此對話中的 **所有人** 刪除 **全部您在%s前發出的訊息**。</string>
     <string name="DeleteAllFromSelfBefore">早於...</string>
     <string name="IgnoreBlocked">隱藏來自黑名單用戶的訊息</string>
+    <string name="KeywordFilter">關鍵字屏蔽</string>
+    <string name="KeywordFilterAbout">包含任一關鍵字的訊息將被徹底隱藏（忽略大小寫），每行一個關鍵字。修改後需重新進入聊天才會生效。</string>
+    <string name="KeywordFilterCount">已設置 %1$d 個關鍵字</string>
+    <string name="KeywordFilterHint">每行一個關鍵字</string>
     <string name="Connection">連線</string>
     <string name="Chat">聊天</string>
     <string name="NameOrder">姓名順序</string>

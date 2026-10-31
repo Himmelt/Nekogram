@@ -141,6 +141,7 @@ public class NekoConfig {
 
     public static String cfAccountID = "";
     public static String cfApiToken = "";
+    public static String keywordFilters = "";
     public static String externalTranslationProvider;
     public static String translationProvider = Translator.PROVIDER_GOOGLE;
     public static String translationTarget = "app";
@@ -243,6 +244,7 @@ public class NekoConfig {
             voiceEnhancements = preferences.getBoolean("voiceEnhancements", false);
             cfAccountID = preferences.getString("cfAccountID", "");
             cfApiToken = preferences.getString("cfApiToken", "");
+            keywordFilters = preferences.getString("keywordFilters", "");
             externalTranslationProvider = preferences.getString("externalTranslationProvider", null);
             translationProvider = preferences.getString("translationProvider2", Translator.PROVIDER_GOOGLE);
             translationTarget = preferences.getString("translationTarget", "app");
@@ -485,6 +487,9 @@ public class NekoConfig {
         }
         if (preferences.contains("cfAccountID")) {
             object.addProperty("cfAccountID", preferences.getString("cfAccountID", ""));
+        }
+        if (preferences.contains("keywordFilters")) {
+            object.addProperty("keywordFilters", preferences.getString("keywordFilters", ""));
         }
         if (preferences.contains("cfApiToken")) {
             object.addProperty("cfApiToken", preferences.getString("cfApiToken", ""));
@@ -745,6 +750,9 @@ public class NekoConfig {
         }
         if (object.has("cfAccountID")) {
             editor.putString("cfAccountID", object.get("cfAccountID").getAsString());
+        }
+        if (object.has("keywordFilters")) {
+            editor.putString("keywordFilters", object.get("keywordFilters").getAsString());
         }
         if (object.has("cfApiToken")) {
             editor.putString("cfApiToken", object.get("cfApiToken").getAsString());
@@ -1149,6 +1157,11 @@ public class NekoConfig {
     public static void setCfAccountID(String value) {
         cfAccountID = value;
         preferences.edit().putString("cfAccountID", value).apply();
+    }
+
+    public static void setKeywordFilters(String value) {
+        keywordFilters = value == null ? "" : value;
+        preferences.edit().putString("keywordFilters", keywordFilters).apply();
     }
 
     public static void setCfApiToken(String value) {
