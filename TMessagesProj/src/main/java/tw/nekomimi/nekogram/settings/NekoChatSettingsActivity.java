@@ -5,6 +5,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.text.InputType;
 import android.text.TextUtils;
 import android.util.TypedValue;
@@ -483,35 +484,49 @@ public class NekoChatSettingsActivity extends BaseNekoSettingsActivity {
         var builder = new AlertDialog.Builder(context, resourcesProvider);
         builder.setTitle(LocaleController.getString(R.string.KeywordFilter));
         builder.setMessage(LocaleController.getString(R.string.KeywordFilterAbout));
-        builder.setCustomViewOffset(0);
 
         var editText = new EditTextBoldCursor(context);
         editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
         editText.setTextColor(Theme.getColor(Theme.key_dialogTextBlack, resourcesProvider));
-        editText.setHintText(LocaleController.getString(R.string.KeywordFilterHint));
-        editText.setHintColor(Theme.getColor(Theme.key_windowBackgroundWhiteHintText));
-        editText.setHeaderHintColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueHeader, resourcesProvider));
-        editText.setTransformHintToHeader(true);
-        editText.setLineColors(Theme.getColor(Theme.key_windowBackgroundWhiteInputField, resourcesProvider), Theme.getColor(Theme.key_windowBackgroundWhiteInputFieldActivated, resourcesProvider), Theme.getColor(Theme.key_text_RedRegular, resourcesProvider));
-        editText.setBackground(null);
-        editText.setPadding(AndroidUtilities.dp(24), AndroidUtilities.dp(8), AndroidUtilities.dp(24), AndroidUtilities.dp(8));
-        editText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        editText.setSingleLine(false);
+        editText.setHintTextColor(Theme.getColor(Theme.key_groupcreate_hintText, resourcesProvider));
+        editText.setHint(LocaleController.getString(R.string.KeywordFilterHint));
+        editText.setFocusable(true);
+        editText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        editText.setGravity(Gravity.TOP | (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT));
         editText.setMinLines(3);
         editText.setMaxLines(8);
-        editText.setGravity(Gravity.TOP | (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT));
+        editText.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(11), AndroidUtilities.dp(16), AndroidUtilities.dp(11));
+        editText.setCursorWidth(1.5f);
+        editText.setCursorColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText4, resourcesProvider));
         editText.setText(NekoConfig.keywordFilters);
-        editText.setSelection(editText.length());
+        editText.setSelection(editText.getText().length());
 
-        builder.setView(editText);
+        var fieldBackground = new GradientDrawable();
+        fieldBackground.setCornerRadius(AndroidUtilities.dp(22));
+        fieldBackground.setColor(Theme.multAlpha(Theme.getColor(Theme.key_dialogTextBlack, resourcesProvider), 0.06f));
+        editText.setBackground(fieldBackground);
+
+        var container = new LinearLayout(context);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.addView(editText, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 20, 9, 20, 9));
+
+        builder.makeCustomMaxHeight();
+        builder.setView(container);
+        builder.setWidth(Math.min(AndroidUtilities.dp(360), AndroidUtilities.displaySize.x * 88 / 100));
+
         builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
         builder.setPositiveButton(LocaleController.getString(R.string.OK), null);
         var dialog = builder.create();
+        dialog.setOnShowListener(d -> {
+            editText.requestFocus();
+            AndroidUtilities.showKeyboard(editText);
+        });
         showDialog(dialog);
         var button = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
         if (button != null) {
             button.setOnClickListener(v -> {
                 NekoConfig.setKeywordFilters(editText.getText().toString());
+                AndroidUtilities.hideKeyboard(editText);
                 dialog.dismiss();
                 updateRows();
             });
